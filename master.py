@@ -92,6 +92,20 @@ def main():
     align_len = len(reference_seq) # assuming aligned properly and all the same length
     check_names_length([pair[0] for pair in sequences], align_len) # most unaligned sequences will have length less than align_len, but this is the max length possible
     util.init_msg("aln_length=%d"%align_len)
+    
+    SEQ_NAME_DELIM = "."
+    
+    HEAD = "HEADER_"
+    TAG_SEQ = "SEQ:"
+    TAG_WIN = "WIN:"
+    TAG_STRUCT = "STRUCT:"
+    TAG_LOOP = "SL:"
+    print util.tabmsg([HEAD+TAG_SEQ, "seq_id", "group", "length"])
+    print util.tabmsg([HEAD+TAG_WIN, "win_id", "seq_id", "shift", "start_a", "end_a", "start_u", "end_u", "has_motif"])
+    print util.tabmsg([HEAD+TAG_STRUCT, "struct_id", "seq_id", "win_id", "struct_number", "energy", "dotbracket"])
+    print util.tabmsg([HEAD+TAG_LOOP, "loop_id", "seq_id", "win_id", "struct_id", "loop_number", "start_a", "end_a", "start_u", "end_u"])
+    
+    win_id, struct_id, loop_id = (0, 0, 0)
 
     # do analysis
     for nameSeqPair in sequences:
@@ -101,13 +115,12 @@ def main():
         
         genome = genome_with_gaps.replace(util.GAP, "")
 
-        seq_id = nameSeqPair[0] # TODO may want to use accession or something
-
+        group, seq_id = nameSeqPair[0].split(SEQ_NAME_DELIM) # assuming name is in format GROUP.SEQ_ID
+        
         L = len(genome)
 
-        util.init_msg("sequence=%s, unalign_length=%d" % (seq_id, L))
-        
-        print ""
+        #util.init_msg("sequence=%s, unalign_length=%d" % (seq_id, L))
+        print util.tabmsg([TAG_SEQ, seq_id, group, L])
 
         for P in p_fractions:
             
@@ -116,25 +129,31 @@ def main():
             check_window_parameters(W, P)
             windows = get_windows(L, W, P)
 
-            for window in windows: 
-                util.init_msg("windows:%d.%d" % (window[0]+1, window[1])) # correct for zero based. Don't +1 for end so numbers are inclusive
+            #for window in windows: 
+            #    util.init_msg("windows:%d.%d" % (window[0]+1, window[1])) # correct for zero based. Don't +1 for end so numbers are inclusive
 
             windows_sanity_check(windows, genome)
 
             for window in windows:
-                win_start, win_end = window
-                # +1 to correct for zero based, and don't -1 for win_end for the same reason
-                run_id = ".".join( [ seq_id, str(win_start+1), str(win_end) ] ) 
-                win_seq = genome[win_start:win_end]
+                win_start_u, win_end_u = window # unaligned numbers
+                win_start_a, win_end_a = unalign_indices.index(win_start_u), unalign_indices.index(win_end_u)  # aligned numbers
                 
-                util.msg(run_id, "seq:"+win_seq)
-                if pattern.has_motif(win_seq):
+                run_id = ".".join( [ seq_id, str(win_start_u+1), str(win_end_u) ] )  # +1 to correct for zero based, and don't -1 for win_end_u for the same reason
+                win_seq = genome[win_start_u:win_end_u]
+                
+                has_motif = pattern.has_motif(win_seq)
+                print util.tabmsg([TAG_WIN, win_id, seq_id, P, win_start_a, win_end_a, win_start_u, win_end_u, has_motif ])
+                
+                #util.msg(run_id, "seq:"+win_seq)
+                if has_motif:
                     util.msg(run_id, "contains motif, estimating SS")
                     
                     seq_structs = ss_prediction.predict_ss(win_seq, run_id, WD) # will return empty list if no .ct file available
                     
                     util.msg(run_id, "%d SS produced"%len(seq_structs))
                     for iSeqStruct in range(len(seq_structs)):
+                        print util.tabmsg([TAG_STRUCT, struct_id, seq_id, win_id, iSeqStruct+1, seq_structs[iSeqStruct].dG, seq_structs[iSeqStruct].ss ])
+
                         motif_loops = pattern.find_motif_loops(seq_structs[iSeqStruct]) # list of subsequence indices for stem loops containing pattern in this ss
                         if len(motif_loops) == 0:
                             util.msg(run_id, "SS_%d does NOT have loop_motif"%(iSeqStruct+1))
@@ -142,19 +161,22 @@ def main():
                             util.msg(run_id, "SS_%d DOES have %d motif_loop(s):"%(iSeqStruct+1, len(motif_loops)))
                             util.result_msg(seq_structs[iSeqStruct]) # print the whole SeqStruct
                             for iLoop in range(len(motif_loops)): # NB motif_loop indices are like slices: start is inclusive, end is exclusive
-                                loop_start = motif_loops[iLoop][0] + win_start # unaln
-                                loop_end = motif_loops[iLoop][1] + win_start
+                                loop_start_u, loop_end_u = motif_loops[iLoop][0]+win_start_u, motif_loops[iLoop][1]+win_start_u # _u meaning unaligned
+                                loop_start_a, loop_end_a  = unalign_indices.index(loop_start_u), unalign_indices.index(loop_end_u)
                                 
-                                align_index_start = unalign_indices.index(loop_start) # equal aligned index
-                                align_index_end = unalign_indices.index(loop_end)
-                               
-                                loop_id = ".".join([run_id, str(iSeqStruct+1), str(iLoop+1)])
-                                stem_loop_seq = win_seq[motif_loops[iLoop][0]:motif_loops[iLoop][1]]
-                                # for loop_start/loop_end, +1 correct for zero based for start. Not +1 for end because index value is exclusive
-                                util.indx_msg("U", loop_id, P, (loop_start+1), loop_end, stem_loop_seq) # this seq's indices
-                                util.indx_msg("A", loop_id, P, (align_index_start+1), align_index_end, stem_loop_seq) # the ref seq's indices
-                else:
+                                print util.tabmsg([TAG_LOOP, loop_id, seq_id, win_id, struct_id, iLoop+1, loop_start_a, loop_end_a, loop_start_u, loop_end_u])
+
+                                #loop_id = ".".join([run_id, str(iSeqStruct+1), str(iLoop+1)])
+                                #stem_loop_seq = win_seq[motif_loops[iLoop][0]:motif_loops[iLoop][1]]
+                                # for loop_start_u/loop_end_u, +1 correct for zero based for start. Not +1 for end because index value is exclusive
+                                #util.indx_msg("U", loop_id, P, (loop_start_u+1), loop_end_u, stem_loop_seq) # this seq's indices
+                                #util.indx_msg("A", loop_id, P, (loop_start_a+1), loop_end_a, stem_loop_seq) # the ref seq's indices
+                                loop_id += 1
+                        struct_id += 1
+                else: # if has motif
                     util.msg(run_id, "no motif in this window")
+                win_id += 1
+            
     print "End of analysis"
 
 if __name__ == "__main__":

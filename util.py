@@ -108,7 +108,8 @@ def unalign_indices(aln_seq, gap="-", gap_value=None):
     return indices
 
 
-
+def tabmsg(content, delim=DELIM):
+    return delim.join([ str(x) for x in content])
 
 def test():
     print "test 1"

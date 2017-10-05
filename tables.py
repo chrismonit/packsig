@@ -4,7 +4,6 @@
 import pandas as pd
 import numpy as np
 
-pd.set_option('display.width', 140) # set width before introducing line breaks when printing df
 
 def prep():
     # merge orig results and restart jobs
@@ -69,7 +68,43 @@ def get_names():
     for i in range(df.shape[0]):
         print str(df.iloc[i].loc["group"]) + "." + df.iloc[i].loc["seq_id"]
     
+def prep_dotbracket():
+    wd = "/big_disk/capsid/packaging_signal/ca-ps_pipleine/pipeline_test/large/merge_orig_restart/"
+    orig = "orig_structures.tsv"
+    restart = "restart_structures.tsv"
+    orig_df = pd.read_csv(wd+orig, sep="\t", header=0)
+    restart_df = pd.read_csv(wd+restart, sep="\t", header=0)
     
+    cat_df = pd.concat([orig_df, restart_df], ignore_index=True) # ignore index means new df has a new set of row numbers
+    
+    cat_df.drop_duplicates(inplace=True)
+    
+    # sort by group
+    cat_df = cat_df.sort_values(["group", "seq_id", "w_start", "struct"]).reset_index(drop=True)
+    
+    new_order = ["group", "seq_id", "w_start", "w_end", "struct", "energy", "w_seq", "dotbracket"]
+    cat_df = cat_df[ new_order ]
+
+    # NB I later renamed "energy" as "w_energy" manually in the file
+    cat_df.to_csv("structures.tsv", sep="\t", index_label="index", na_rep="NA")
+
+def join_large_structures():
+    """ So far have made two tables, one with summaries of SLs and one with RNA structures and energies
+    Now want to join these together """
+
+    wd = "/big_disk/capsid/packaging_signal/ca-ps_pipleine/pipeline_test/large/merge_orig_restart/"
+    large = "large_dataset_out.tsv"
+    structures = "structures.tsv"
+    df1 = pd.read_csv(wd+large, sep="\t", header=0)
+    df2 = pd.read_csv(wd+structures, sep="\t", header=0)
+
+    df2.drop( ["w_seq", "dotbracket"], axis=1, inplace=True )
+
+    join = pd.merge(df1, df2, how="left", on=["group", "seq_id", "w_start", "w_end", "struct"])
+
+    join.drop( ["index_x", "index_y"], axis=1, inplace=True )
+    join.to_csv("join.tsv", sep="\t", index_label="index")
 
 if __name__ == "__main__":
-    get_names()
+    pd.set_option('display.width', 140) # set width before introducing line breaks when printing df
+    join_large_structures()

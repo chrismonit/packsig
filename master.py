@@ -129,14 +129,14 @@ def main():
             check_window_parameters(W, P)
             windows = get_windows(L, W, P)
 
-            #for window in windows: 
-            #    util.init_msg("windows:%d.%d" % (window[0]+1, window[1])) # correct for zero based. Don't +1 for end so numbers are inclusive
+            for window in windows: 
+                util.init_msg("windows:%d.%d" % (window[0]+1, window[1])) # correct for zero based. Don't +1 for end so numbers are inclusive
 
             windows_sanity_check(windows, genome)
 
             for window in windows:
-                win_start_u, win_end_u = window # unaligned numbers
-                win_start_a, win_end_a = unalign_indices.index(win_start_u), unalign_indices.index(win_end_u)  # aligned numbers
+                win_start_u, win_end_u = window # unaligned numbers. NB indices are like slice numbers (upper is exclusive)
+                win_start_a, win_end_a = unalign_indices.index(win_start_u), unalign_indices.index(win_end_u-1)+1  # aligned numbers
                 
                 run_id = ".".join( [ seq_id, str(win_start_u+1), str(win_end_u) ] )  # +1 to correct for zero based, and don't -1 for win_end_u for the same reason
                 win_seq = genome[win_start_u:win_end_u]

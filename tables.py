@@ -105,6 +105,51 @@ def join_large_structures():
     join.drop( ["index_x", "index_y"], axis=1, inplace=True )
     join.to_csv("join.tsv", sep="\t", index_label="index")
 
+def test_join1():
+    left = pd.DataFrame(
+            {'key': ['K0', 'K1', 'K2', 'K3'],
+               'A': ['A0', 'A1', 'A2', 'A3'],
+               'B': ['B0', 'B1', 'B2', 'B3']}
+            )
+
+    right = pd.DataFrame(
+            {'key': ['K1', 'K3'],
+               'C': ['C1', 'C3'],
+               'D': ['D1', 'D3']}
+            )
+    result = pd.merge(left, right, how="inner", on='key') 
+    print "L"
+    print left
+    print "R"
+    print right
+    print "join"
+    print result
+
+
+def test_join2():
+    struct = pd.DataFrame(
+            {'struct_id': ['K0', 'K1', 'K2', 'K3', 'K4', 'K5'],
+                'run_id':['0', '0', '1', '1', '2', '2'],
+               'w_energy': ['A0', 'A1', 'A2', 'A3', 'A4', 'A5']}
+            )
+
+    sl = pd.DataFrame(
+            {'struct_id': ['K1', 'K3', 'K1'],
+               'loop_id': ['C1', 'C3', 'C4'],
+                'run_id':['0', '1', '2'],
+               'win_id': ['D1', 'D3', 'D1']}
+            )
+    result = pd.merge(struct, sl, how="inner", on=['struct_id', 'run_id']) 
+    print "L"
+    print struct
+    print "R"
+    print sl
+    print "join"
+    print result
+
+
+
 if __name__ == "__main__":
     pd.set_option('display.width', 140) # set width before introducing line breaks when printing df
-    join_large_structures()
+    test_join2()
+

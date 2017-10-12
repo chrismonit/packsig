@@ -3,6 +3,7 @@ import matplotlib
 from matplotlib.patches import Rectangle
 import numpy as np
 import util
+import annotations
 import pandas as pd
 import tdg.utils.readInFastaSequences as reader
 import argparse
@@ -10,6 +11,8 @@ import time
 
 
 class Colour:
+    """ This class takes a series of values X and determines appropriate bins, as one would for a histogram
+        It assigns colours to each of these bins, so for a single value x, can provide the appropriate colour label """
     def __init__(self, X, bins=5, tolerance=1e-12):
         self.colours = [ 'blue', 'green', 'yellow', 'orange', 'red'  ]
         self.nan_colour = "black"
@@ -45,7 +48,7 @@ def test():
     print col.get(np.NaN)
 
 
-def plot_sl(axis, df):
+def plot_sl(axis, df, annotations={}):
 #    parser = argparse.ArgumentParser(description="")
 #    parser.add_argument("sl_tsv", help="")
 #    args = parser.parse_args()
@@ -55,23 +58,29 @@ def plot_sl(axis, df):
     
     #f, ax = plt.subplots(1, figsize=(24,12))
     
-    
     #df = df[ df["group"] == "C" ] # for testing with smaller groups
     
-    df = df[ ["seq_id", "sl_start", "sl_end", "shift", "w_energy"] ]
+    #df = df[ ["seq_id", "sl_start", "sl_end", "shift", "s_energy"] ]
+    df = df[ ["seq_id", "group", "start_a", "end_a", "s_energy"] ]
     
     seq_ids = df["seq_id"].unique()
     n_seqs = seq_ids.shape[0]
-    height = n_seqs
+    height = n_seqs + len(annotations)
+
+    feature_colour = "black"
+    for k in sorted(annotations.keys()): # TODO this is a bad quick fix. Sorted order may not be correct order!
+        for feature in annotations[k]: # feature is probably a gene
+            axis.plot( feature, [height, height], feature_colour )
+        height -= 1
 
     # This is a quick fix, need to address data properly
-    # have 5 values with w_energy >> other values, which I assume are junk
+    # have 5 values with s_energy >> other values, which I assume are junk
     # ie ~10^6, while next highest is 7.56
-    #df.ix[df.w_energy > 20., 'w_energy'] = np.NaN
-    mask = df.w_energy > 20
-    df.loc[mask, "w_energy"] = np.NaN # https://stackoverflow.com/questions/21608228/conditional-replace-pandas
+    #df.ix[df.s_energy > 20., 's_energy'] = np.NaN
+    mask = df.s_energy > 20
+    df.loc[mask, "s_energy"] = np.NaN # https://stackoverflow.com/questions/21608228/conditional-replace-pandas
     
-    col = Colour(df["w_energy"])
+    col = Colour(df["s_energy"])
     
     i_seq_id = 0
     for seq_id in seq_ids:
@@ -80,8 +89,8 @@ def plot_sl(axis, df):
         
         y = [height, height]
         #drop = []
-        for row in df[df["seq_id"] == seq_id].itertuples():
-            sl_index, seq_id, sl_start, sl_end, shift, energy = row
+        for row in df[df["seq_id"] == seq_id].itertuples(): # TODO inefficient
+            sl_index, seq_id, group, sl_start, sl_end, energy = row
             #drop.append(sl_index) 
             sl = [ sl_start, sl_end ]
             
@@ -97,14 +106,38 @@ def plot_sl(axis, df):
 def plot_sl_alone():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("sl_tsv", help="")
+    parser.add_argument("struct_tsv", help="")
+    parser.add_argument("seq_tsv", help="")
+    parser.add_argument("aligned_ref", help="fasta file containing reference sequence which has been aligned to the dataset you are using")
     args = parser.parse_args()
     
+    aligned_ref = reader.ReadInFasta(args.aligned_ref)[0] # use first sequence, though there may only be one
+    print "Using sequence %s as aligned reference sequence" % aligned_ref[0]
+    
+    aligned_indices = util.unalign_indices(aligned_ref[1])
+    ben = annotations.make_ben() 
+    # changin values so they are aligned indices
+    for k in ben.keys():
+        ben[k] = [  [ aligned_indices.index(pair[0]), aligned_indices.index(pair[1]) ]  for pair in ben[k]     ]
+
+
     sl_df = pd.read_csv(args.sl_tsv, sep="\t", header=0)
+    struct_df = pd.read_csv(args.struct_tsv, sep="\t", header=0)
+    struct_df = struct_df[ [ "run_id", "struct_id", "s_energy"] ]
+    seq_df = pd.read_csv(args.seq_tsv, sep="\t", header=0)
+    seq_df = seq_df[ ["run_id", "seq_id", "group"] ]
+    
+    # original that doesnt work:
+    #join = pd.merge(sl_df, struct_df, how="inner", on=['struct_id'])
+    
+    join_sl_struct = pd.merge(sl_df, struct_df, how="inner", on=["run_id", "struct_id"]).sort_values(["run_id", "struct_id"])
+    
+    join_sl_struct_seq = pd.merge(join_sl_struct, seq_df, how="inner", on=["run_id", "seq_id"]).sort_values(["run_id", "struct_id"])
     
     f, axis = plt.subplots(1)
     
     t0 = time.time()
-    plot_sl(axis, sl_df)
+    plot_sl(axis, join_sl_struct_seq, ben)
     t1 = time.time()
     print "time: ", t1-t0
     plt.show()
@@ -158,7 +191,7 @@ def plot_all():
 
 def energies_hist():
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("energies_tsv", help="a tsv containing a column with name 'w_energy' ")
+    parser.add_argument("energies_tsv", help="a tsv containing a column with name 's_energy' ")
     args = parser.parse_args()
     
     df = pd.read_csv(args.energies_tsv, sep="\t", header=0)
@@ -167,7 +200,7 @@ def energies_hist():
 #    mu, sigma = 0, 1
 #    x = mu + sigma*np.random.randn(500)
 #    data=x
-    data_orig = df["w_energy"].dropna().values
+    data_orig = df["s_energy"].dropna().values
 
     C = 1000 # some of the energy values are huge (and therefore, presumably, nonsense)
     data = [ x for x in data_orig if x < C]
@@ -177,6 +210,7 @@ def energies_hist():
 
 
 if __name__ == "__main__":
+    pd.set_option('display.width', 140) # set width before introducing line breaks when printing df
     #plot_all()
     plot_sl_alone()
     #energies()

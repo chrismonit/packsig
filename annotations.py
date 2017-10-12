@@ -281,5 +281,58 @@ def count_features():
 
 
 
+# could replace with a class or something?
+def make_hxb2():
+    f1 = [ [1, 634], # 5' LTR
+        [790, 2292], # gag
+        [5041, 5619], # vif
+        [8379, 8469], # tat2
+        [8797,9417] # nef
+    ]# f1
+    f2 = [ [5831,6045], # tat1
+            [6062,6310], # vpu 
+            [8379,8653], #rev2
+            [9086,9719] #3' LTR
+            ] #f2
+    f3 = [ [2085,5096], #pol
+            [5559, 5850],# vpr
+            [5970,6045], #rev1
+            [6225,8795]# env
+            ] #f3
+    f1 = [ [l[0]-1, l[1]-1] for l in f1 ] # make zero based
+    f2 = [ [l[0]-1, l[1]-1] for l in f2 ] # make zero based
+    f3 = [ [l[0]-1, l[1]-1] for l in f3 ] # make zero based
+    frames = [f1, f2, f3]
+    ids = [ "HXB2 F1", "HXB2 F2", "HXB2 F3" ]
+    return dict(zip(ids, frames))
+
+
+def make_ben():
+    f1 = [ [1,855], # 5' LTR
+        [2395,5754], # pol
+        [6628,6697], # rev1
+        [8861,9102], # rev2
+        [9505,10359] # 3'LTR
+    ]# f1
+    f2 = [ [1103,2668], # gag
+            [5423,6070], # vif
+            [6239,6502], # vpr
+            [6704,9286] # env
+            ] #f2
+    f3 = [ [5898,6239], # vpx
+            [6402,6697],# tat1 
+            [8861,8957], # tat2
+            [9120,9893]# nef
+            ] #f3
+    f1 = [ [l[0]-1, l[1]-1] for l in f1 ] # make zero based
+    f2 = [ [l[0]-1, l[1]-1] for l in f2 ] # make zero based
+    f3 = [ [l[0]-1, l[1]-1] for l in f3 ] # make zero based
+    frames = [f1, f2, f3]
+    ids = [ "BEN F1", "BEN F2", "BEN F3" ]
+    return dict(zip(ids, frames))
+
+
+
+
 if __name__ == "__main__":
     count_features()

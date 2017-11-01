@@ -62,11 +62,11 @@ def find_peak_regions(sites, readCounts, thresh=None):
 
 
 def plot_nc_binding():
-    mean = np.mean(immature)
-    std = np.std(immature)
-    plt.plot(x,immature)
-    plt.plot( x, [mean]*len(x) )
-    plt.plot( x, [mean+std]*len(x) )
+    mean = np.mean(mature)
+    std = np.std(mature)
+    plt.plot(sites,mature)
+    plt.plot( sites, [mean]*len(sites) )
+    plt.plot( sites, [mean+std]*len(sites) )
     plt.xticks(range(0, 10000, 1000))
     plt.show()
 
@@ -280,9 +280,18 @@ def count_features():
     result_df.to_csv("count_features.tsv", sep="\t", index=False)
 
 
+def get_genome_features(reference):
+    if reference == "hxb2":
+        return make_hxb2()
+    elif reference == "ben": 
+        return make_ben()
+    else:
+        return None
+
 
 # could replace with a class or something?
 def make_hxb2():
+    cppt = [ [4773, 4805] ] # according to charneau and Clavel 1991
     f1 = [ [1, 634], # 5' LTR
         [790, 2292], # gag
         [5041, 5619], # vif
@@ -299,12 +308,13 @@ def make_hxb2():
             [5970,6045], #rev1
             [6225,8795]# env
             ] #f3
+    cppt = [ [l[0]-1, l[1]-1] for l in cppt ] # make zero based
     f1 = [ [l[0]-1, l[1]-1] for l in f1 ] # make zero based
     f2 = [ [l[0]-1, l[1]-1] for l in f2 ] # make zero based
     f3 = [ [l[0]-1, l[1]-1] for l in f3 ] # make zero based
-    frames = [f1, f2, f3]
-    ids = [ "HXB2 F1", "HXB2 F2", "HXB2 F3" ]
-    return dict(zip(ids, frames))
+    features = [cppt, f1, f2, f3]
+    ids = [ "HXB2 cPPT", "HXB2 F1", "HXB2 F2", "HXB2 F3" ]
+    return dict(zip(ids, features))
 
 
 def make_ben():
@@ -335,4 +345,11 @@ def make_ben():
 
 
 if __name__ == "__main__":
-    count_features()
+    for pair in find_peak_regions(sites, mature):
+        print "mature", pair
+
+#    mean = np.mean(mature)
+#    sd = np.std(mature)
+#    thresh = mean + sd
+#    for i in range(len(sites)):
+#        print "counts", sites[i], mature[i], mature[i] > thresh

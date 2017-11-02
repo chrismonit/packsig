@@ -57,6 +57,38 @@ def test():
     print freq
 
 
+def plot_sl_diff_struct():
+    """ Want to visualise possible overlap of stem loops"""
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("all_sl_tsv", type=str, help="table containing data for all sl, used for determining colours")
+    parser.add_argument("struct_specific_sl_tsv", type=str, help="table containing data for only the given structure number (1, 2, 3, or 4, etc)")
+    parser.add_argument("struct_number", type=int, help="")
+    args = parser.parse_args()
+    figsize = (18, 12)
+    
+    all_data = pd.read_csv(args.all_sl_tsv, sep="\t")
+    to_plot = pd.read_csv(args.struct_specific_sl_tsv, sep="\t")
+    to_plot.columns = ["index", "run_id", "seq_id", "group", "length", "loop_id", "win_id", "struct_id", "loop_number", "start_a", "end_a", "start_u", "end_u", "struct_number", "s_energy", "dotbracket"]
+    struct_number_str = str(args.struct_number)
+    
+    mask1 = all_data.s_energy > 20
+    all_data.loc[mask1, "s_energy"] = np.NaN # https://stackoverflow.com/questions/21608228/conditional-replace-pandas
+    mask2 = to_plot.s_energy > 20
+    to_plot.loc[mask2, "s_energy"] = np.NaN
+
+    col = Colour(all_data["s_energy"]) # want the colours to be determined using the whole set of energies, not jsut the set associated with this structure
+    
+    fig, axis = plt.subplots(1, figsize=figsize)
+   
+    plot_sl(axis, to_plot, col, title="struct_number=%s"%struct_number_str) 
+
+    n_sites = 13890
+    xticks = [ x*500 for x in range(n_sites/500 + 1) ] + [n_sites] 
+    axis.set_xticks(xticks)
+    axis.set_xticklabels(xticks)
+
+    plt.savefig( "%s.struct_number.sl.pdf"%struct_number_str )
+   
 
 
 def plot_sl(axis, df, energy_colouring, title="", shadings=[]): # NB any NaN values must be dealt with in advance
@@ -307,11 +339,25 @@ def energies():
     plt.show()
 
 
-
+def multiple_energy_distributions():
+    d = "/big_disk/capsid/packaging_signal/analyses/large/merge_orig_restart/run_again/"
+    files = [ "1.tmp", "2.tmp", "3.tmp", "4.tmp" ]
+    
+    f, axis = plt.subplots(1)
+    
+    for i in range(len(files)):
+        df = pd.read_csv(d+files[i], sep="\t")
+        df.columns = ["index", "run_id", "seq_id", "group", "length", "loop_id", "win_id", "struct_id", "loop_number", "start_a", "end_a", "start_u", "end_u", "struct_number", "s_energy", "dotbracket"]
+        
+        data = df["s_energy"]
+        axis.scatter(data, [i]*len(data), marker='+')
+    plt.show()
 
 if __name__ == "__main__":
     pd.set_option('display.width', 140) # set width before introducing line breaks when printing df
     #plot_all()
-    plot_sl_alone()
+    #plot_sl_alone()
     #energies()
     #test()
+    #multiple_energy_distributions()
+    plot_sl_diff_struct()

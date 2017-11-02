@@ -246,6 +246,48 @@ def num_sl_filled(sequences, iSite, df, gap="-"):
     v = [n_sl, n_filled_sl, n_filled, float(n_filled_sl)/float(n_filled), float(n_sl)/float(len(sequences))]
     return v
 
+def count_features2():
+    import argparse
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("sl_tsv", help="")
+    parser.add_argument("fasta", help="")
+    parser.add_argument("output_path", help="path for output dataframe")
+    args = parser.parse_args()
+    
+    df = pd.read_csv(args.sl_tsv, sep="\t", header=0)
+    input_sequences = reader.ReadInFasta(args.fasta)
+    
+    sequences = make_aln_name_seq_id(input_sequences)
+    check_aln_df_names_match(df, sequences)
+
+    n_sites = len(sequences[0][1])
+    n_seq = len(sequences)
+
+    d = {
+            "nongap" : [0]*n_sites,
+            "sl_total" : [0]*n_sites
+            }
+    
+    # count nongaps at each site
+    for i in range(n_sites):
+        gaps = count_gap(sequences, i)
+        nongaps = n_seq - gaps
+        d["nongap"][i] = nongaps
+    
+    # count sl at each nt site
+    for row in df.itertuples():
+        # <INDEX> run_id  loop_id  seq_id  win_id  struct_id  loop_number  start_a  end_a  start_u  end_u
+        start_a, end_a = row[7], row[8]
+        for i in range(start_a -1, end_a-1): # end_a should be exlusive, so -1 is appropriate
+            d["sl_total"][i] += 1
+    
+    # get normalised sl numbers 
+    d["sl_total/n_seq"] = [ sl_total/float(n_seq) for sl_total in d["sl_total"] ]
+    
+    df = pd.DataFrame(d)
+    df.index += 1 # can use index as site numbers
+    df.to_csv(args.output_path, sep="\t", index_label="site")
+
 def count_features():
     """Produce a dataframe with columns:
         site, sl_total, non_gap_sl, non_gap, (non_gap_sl/non_gap), sl_total/n_seq
@@ -345,11 +387,12 @@ def make_ben():
 
 
 if __name__ == "__main__":
-    for pair in find_peak_regions(sites, mature):
-        print "mature", pair
+#    for pair in find_peak_regions(sites, mature):
+#        print "mature", pair
 
 #    mean = np.mean(mature)
 #    sd = np.std(mature)
 #    thresh = mean + sd
 #    for i in range(len(sites)):
 #        print "counts", sites[i], mature[i], mature[i] > thresh
+    count_features2()

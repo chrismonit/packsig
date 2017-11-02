@@ -148,26 +148,8 @@ def test_join2():
     print result
 
 
-def check_overlapping_sl():
-    d = "/big_disk/capsid/packaging_signal/analyses/large/merge_orig_restart/run_again/"
-    sl = pd.read_csv(d+"sl.tsv", sep="\t", header=0)
-    seq = pd.read_csv(d+"seq.tsv", sep="\t", header=0)
-    struct = pd.read_csv(d+"struct.tsv", sep="\t", header=0)
-    #win = pd.read_csv(d+"win.tsv", sep="\t", header=0)
 
-    join_seq_sl = pd.merge(seq, sl, how="inner", on=["run_id", "seq_id"])
-    join_seq_sl_struct = pd.merge(join_seq_sl, struct, how="inner", on=["run_id", "seq_id", "struct_id", "win_id"])
-
-    #print sl.shape, join_seq_sl.shape, join_seq_sl_struct.shape
-    b = join_seq_sl_struct[ join_seq_sl_struct["group"] == "B"  ].sort_values(["start_a", "end_a", "loop_number"])
-    
-    print b.head()
-    print b.tail()
-
-    b.to_csv("b.tmp.tsv", sep="\t", index_label="index")
-    print "done"
 
 if __name__ == "__main__":
     pd.set_option('display.width', 140) # set width before introducing line breaks when printing df
-    #check_overlapping_sl()
     multiple_energy_distributions()
